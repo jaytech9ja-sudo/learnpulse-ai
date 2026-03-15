@@ -6,6 +6,13 @@ export default function Home() {
   const [insight, setInsight] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("import");
+const [selectedStudent, setSelectedStudent] = useState(null);
+const [scenario, setScenario] = useState("low_score");
+const [coachingScript, setCoachingScript] = useState("");
+const [coachingLoading, setCoachingLoading] = useState(false);
+const [emailTone, setEmailTone] = useState("concerned");
+const [emailDraft, setEmailDraft] = useState("");
+const [emailLoading, setEmailLoading] = useState(false);
 
   return (
     <main className="min-h-screen bg-gray-950 text-white">
@@ -424,18 +431,300 @@ export default function Home() {
         )}
 
         {/* ACTIONS TAB */}
-        {activeTab === "actions" && (
-          <div className="text-center py-20 text-gray-600">
-            <div className="text-4xl mb-4">🚧</div>
-            <p className="text-lg font-medium text-gray-400">
-              Coming next!
-            </p>
-            <p className="text-sm mt-2">
-              Coaching scripts + parent emails — 
-              building this next session
-            </p>
+{activeTab === "actions" && (
+  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    {/* LEFT — Student Selector */}
+    <div className="lg:col-span-1">
+      <h3 className="text-sm font-medium text-gray-400 
+      uppercase tracking-wider mb-3">
+        Select Student
+      </h3>
+      {students.length === 0 ? (
+        <div className="bg-gray-900 border border-gray-800 
+        rounded-xl p-6 text-center text-gray-600 text-sm">
+          Import students first
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {students.map(s => (
+            <div
+              key={s.id}
+              onClick={() => setSelectedStudent(s)}
+              className={`p-3 rounded-xl border cursor-pointer 
+              transition-all ${
+                selectedStudent?.id === s.id
+                  ? "border-amber-400 bg-gray-900"
+                  : "border-gray-800 bg-gray-900/50 hover:border-gray-700"
+              }`}
+            >
+              <div className="flex justify-between items-center">
+                <div>
+                  <div className="text-sm font-medium text-white">
+                    {s.avgScore < 60 && (
+                      <span className="text-red-400 mr-1">⚑</span>
+                    )}
+                    {s.name}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">
+                    Gr.{s.grade} · {s.subject}
+                  </div>
+                </div>
+                <span className={`text-sm font-bold ${
+                  s.avgScore >= 80 ? "text-green-400" :
+                  s.avgScore >= 60 ? "text-amber-400" :
+                  "text-red-400"
+                }`}>
+                  {s.avgScore}%
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+
+    {/* RIGHT — Action Panel */}
+    <div className="lg:col-span-2">
+      {!selectedStudent ? (
+        <div className="border border-dashed border-gray-800 
+        rounded-xl p-16 text-center text-gray-600">
+          <div className="text-4xl mb-4">👈</div>
+          <p>Select a student to generate actions</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-5">
+
+          {/* Student Card */}
+          <div className="bg-gray-900 border border-gray-800 
+          rounded-xl p-5">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-lg font-bold text-white">
+                  {selectedStudent.name}
+                </h3>
+                <p className="text-gray-400 text-sm mt-0.5">
+                  Grade {selectedStudent.grade} · {selectedStudent.subject}
+                </p>
+              </div>
+              <div className="text-right">
+                <div className={`text-3xl font-bold ${
+                  selectedStudent.avgScore >= 80 ? "text-green-400" :
+                  selectedStudent.avgScore >= 60 ? "text-amber-400" :
+                  "text-red-400"
+                }`}>
+                  {selectedStudent.avgScore}%
+                </div>
+                <div className="text-xs text-gray-500">avg score</div>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-4 flex-wrap">
+              {[
+                ["Completion", `${selectedStudent.lessonCompletion}%`],
+                ["Streak", `${selectedStudent.streak}d 🔥`],
+                ["Last Active", selectedStudent.lastActive],
+                ["Errors", selectedStudent.errorPatterns],
+              ].map(([label, value]) => (
+                <div key={label} className="bg-gray-950 rounded-lg 
+                px-3 py-2 text-xs">
+                  <span className="text-gray-500">{label}: </span>
+                  <span className="text-gray-300 font-medium">
+                    {value}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
-        )}
+
+          {/* Coaching Script Generator */}
+          <div className="bg-gray-900 border border-gray-800 
+          rounded-xl p-5">
+            <h4 className="font-semibold text-white mb-3">
+              📞 Coaching Call Script
+            </h4>
+            <div className="flex gap-2 flex-wrap mb-4">
+              {[
+                { key: "low_score", label: "📉 Low Score" },
+                { key: "disengaged", label: "💤 Disengaged" },
+                { key: "blocker", label: "🧱 Blocker" },
+                { key: "encourage", label: "🚀 Push to Mastery" },
+              ].map(sc => (
+                <button
+                  key={sc.key}
+                  onClick={() => setScenario(sc.key)}
+                  className={`px-3 py-1.5 rounded-lg text-xs 
+                  font-medium transition-all border ${
+                    scenario === sc.key
+                      ? "bg-blue-500 border-blue-500 text-white"
+                      : "bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-600"
+                  }`}
+                >
+                  {sc.label}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={async () => {
+                setCoachingLoading(true);
+                setCoachingScript("");
+                try {
+                  const res = await fetch("/api/coaching", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                      student: selectedStudent,
+                      scenario
+                    }),
+                  });
+                  const data = await res.json();
+                  setCoachingScript(
+                    data.script || data.error
+                  );
+                } catch (e) {
+                  setCoachingScript("Error generating script");
+                }
+                setCoachingLoading(false);
+              }}
+              disabled={coachingLoading}
+              className={`w-full py-2.5 rounded-lg text-sm 
+              font-bold transition-all ${
+                coachingLoading
+                  ? "bg-gray-800 text-gray-600 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-500 text-white"
+              }`}
+            >
+              {coachingLoading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="animate-spin">⟳</span>
+                  Writing script...
+                </span>
+              ) : "📞 Generate Call Script"}
+            </button>
+            {coachingScript && (
+              <div className="mt-4">
+                <div className="flex justify-between items-center 
+                mb-2">
+                  <span className="text-xs text-gray-500">
+                    ~10 min call
+                  </span>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(coachingScript);
+                      alert("Copied to clipboard!");
+                    }}
+                    className="text-xs text-blue-400 
+                    hover:text-blue-300"
+                  >
+                    Copy ↗
+                  </button>
+                </div>
+                <div className="bg-gray-950 rounded-lg p-4 
+                text-sm text-gray-300 whitespace-pre-wrap 
+                leading-relaxed max-h-64 overflow-y-auto">
+                  {coachingScript}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Parent Email Generator */}
+          <div className="bg-gray-900 border border-gray-800 
+          rounded-xl p-5">
+            <h4 className="font-semibold text-white mb-3">
+              📧 Parent Email
+            </h4>
+            <div className="flex gap-2 flex-wrap mb-4">
+              {[
+                { key: "concerned", label: "😟 Concerned" },
+                { key: "positive", label: "🎉 Celebrating" },
+                { key: "checkIn", label: "📋 Check-In" },
+                { key: "urgent", label: "🚨 Urgent" },
+              ].map(t => (
+                <button
+                  key={t.key}
+                  onClick={() => setEmailTone(t.key)}
+                  className={`px-3 py-1.5 rounded-lg text-xs 
+                  font-medium transition-all border ${
+                    emailTone === t.key
+                      ? "bg-purple-500 border-purple-500 text-white"
+                      : "bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-600"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={async () => {
+                setEmailLoading(true);
+                setEmailDraft("");
+                try {
+                  const res = await fetch("/api/email", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                      student: selectedStudent,
+                      tone: emailTone
+                    }),
+                  });
+                  const data = await res.json();
+                  setEmailDraft(data.email || data.error);
+                } catch (e) {
+                  setEmailDraft("Error generating email");
+                }
+                setEmailLoading(false);
+              }}
+              disabled={emailLoading}
+              className={`w-full py-2.5 rounded-lg text-sm 
+              font-bold transition-all ${
+                emailLoading
+                  ? "bg-gray-800 text-gray-600 cursor-not-allowed"
+                  : "bg-purple-600 hover:bg-purple-500 text-white"
+              }`}
+            >
+              {emailLoading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="animate-spin">⟳</span>
+                  Drafting email...
+                </span>
+              ) : "📧 Generate Parent Email"}
+            </button>
+            {emailDraft && (
+              <div className="mt-4">
+                <div className="flex justify-between 
+                items-center mb-2">
+                  <span className="text-xs text-gray-500">
+                    Ready to send
+                  </span>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(emailDraft);
+                      alert("Copied to clipboard!");
+                    }}
+                    className="text-xs text-purple-400 
+                    hover:text-purple-300"
+                  >
+                    Copy ↗
+                  </button>
+                </div>
+                <div className="bg-gray-950 rounded-lg p-4 
+                text-sm text-gray-300 whitespace-pre-wrap 
+                leading-relaxed max-h-64 overflow-y-auto">
+                  {emailDraft}
+                </div>
+              </div>
+            )}
+          </div>
+
+        </div>
+      )}
+    </div>
+  </div>
+)}
 
       </div>
     </main>
